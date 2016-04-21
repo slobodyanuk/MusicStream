@@ -1,0 +1,53 @@
+<resources>
+    <string name="app_name">MusicStream</string>
+    <string name="drawer_open">drawer_open</string>
+    <string name="drawer_close">drawer_close</string>
+    <string name="tap_to_play">Tap to play music</string>
+
+    <string-array name="genres">
+        <item>soundcloud:genres:all-music</item>
+        <item>soundcloud:genres:all-audio</item>
+        <item>soundcloud:genres:alternativerock</item>
+        <item>soundcloud:genres:ambient</item>
+        <item>soundcloud:genres:classical</item>
+        <item>soundcloud:genres:country</item>
+        <item>soundcloud:genres:danceedm</item>
+        <item>soundcloud:genres:dancehall</item>
+        <item>soundcloud:genres:deephouse</item>
+        <item>soundcloud:genres:disco</item>
+        <item>soundcloud:genres:drumbass</item>
+        <item>soundcloud:genres:dubstep</item>
+        <item>soundcloud:genres:electronic</item>
+        <item>soundcloud:genres:folksingersongwriter</item>
+        <item>soundcloud:genres:hiphoprap</item>
+        <item>soundcloud:genres:house</item>
+        <item>soundcloud:genres:indie</item>
+        <item>soundcloud:genres:jazzblues</item>
+        <item>soundcloud:genres:latin</item>
+        <item>soundcloud:genres:metal</item>
+        <item>soundcloud:genres:piano</item>
+        <item>soundcloud:genres:pop</item>
+        <item>soundcloud:genres:rbsoul</item>
+        <item>soundcloud:genres:reggae</item>
+        <item>soundcloud:genres:reggaeton</item>
+        <item>soundcloud:genres:rock</item>
+        <item>soundcloud:genres:soundtrack</item>
+        <item>soundcloud:genres:techno</item>
+        <item>soundcloud:genres:trance</item>
+        <item>soundcloud:genres:trap</item>
+        <item>soundcloud:genres:triphop</item>
+        <item>soundcloud:genres:world</item>
+        <item>soundcloud:genres:audiobooks</item>
+        <item>soundcloud:genres:business</item>
+        <item>soundcloud:genres:comedy</item>
+        <item>soundcloud:genres:entertainment</item>
+        <item>soundcloud:genres:learning</item>
+        <item>soundcloud:genres:newspolitics</item>
+        <item>soundcloud:genres:religionspirituality</item>
+        <item>soundcloud:genres:science</item>
+        <item>soundcloud:genres:sports</item>
+        <item>soundcloud:genres:storytelling</item>
+        <item>soundcloud:genres:technology</item>
+    </string-array>
+
+</resources>

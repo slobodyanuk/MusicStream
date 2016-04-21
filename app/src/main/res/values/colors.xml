@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimaryDark">#257A9B</color>
+    <color name="colorPrimary">#0293CC</color>
+    <color name="colorAccent">#4AC0C9</color>
+    <color name="colorPink">#C71585</color>
+    <color name="colorSeaGreen">#3CB371</color>
+    <color name="colorYellow">#EEEE00</color>
+
+    <color name="colorCyanTransparent">#ee109696</color>
+    <color name="colorRedTransparent">#E6C71585</color>
+    <color name="colorBlueTransparent">#E61E90FF</color>
+    <color name="colorBrownTransparent">#E6A52A2A</color>
+    <color name="colorAccentTransparent">#400293cc</color>
+    <color name="colorSkyBlue">#009ACD</color>
+
+    <array name="controlColors">
+        <item>@color/colorCyanTransparent</item>
+        <item>@color/colorRedTransparent</item>
+        <item>@color/colorBlueTransparent</item>
+        <item>@color/colorBrownTransparent</item>
+    </array>
+
+</resources>
