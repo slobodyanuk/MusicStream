@@ -15,14 +15,17 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.widget.RemoteViews;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.NotificationTarget;
 import com.musicstream.R;
 import com.musicstream.activities.MainActivity;
 import com.musicstream.enums.PlayerState;
+import com.musicstream.events.PopupEvent;
 import com.musicstream.events.UpdateListState;
+import com.musicstream.events.UpdateTrackState;
 import com.musicstream.interfaces.MediaControlListener;
 import com.musicstream.rest.model.Track;
 import com.musicstream.utils.Constants;
-import com.squareup.picasso.Picasso;
 
 import org.greenrobot.eventbus.EventBus;
 
@@ -47,22 +50,16 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         MediaPlayer.OnCompletionListener, MediaControlListener {
 
     public static final String TAG = "music_service";
-
-    private final IBinder mBinder = new MusicServiceBinder();
     private static MusicService mInstance = null;
     private static MediaPlayer mMediaPlayer = null;
-
+    private static PlayerState mPlayerState = PlayerState.Retrieving;
+    private final IBinder mBinder = new MusicServiceBinder();
     private NotificationManager mNotificationManager;
     private Notification mNotification = null;
-
     private int mCurrentPlayingSong = -1;
     private int mNotificationImagePlay = android.R.drawable.ic_media_play;
     private int mNotificationImagePause = android.R.drawable.ic_media_pause;
-
     private boolean foregroundStarted = false;
-
-    private static PlayerState mPlayerState = PlayerState.Retrieving;
-
     private RemoteViews bigNotificationView;
     private RemoteViews smallNotificationView;
     private List<Track> mMediaItems;
@@ -148,6 +145,10 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         mSongName = mTrack.getTitle();
     }
 
+    public void setTrackPosition(int position) {
+        mCurrentPlayingSong = position;
+    }
+
     public void setTrack(int position) {
         mCurrentPlayingSong = position;
         initCurrentMedia();
@@ -179,6 +180,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private void asyncMediaPlayer() {
         try {
             mMediaPlayer.setDataSource(mUrl);
+            EventBus.getDefault().post(new PopupEvent(mSongName));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -194,9 +196,13 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     public void playMusic() {
         if (!mPlayerState.equals(PlayerState.Playing)) {
-            mMediaPlayer.start();
-            notifyForeground(mNotificationImagePause);
-            mPlayerState = PlayerState.Playing;
+            try {
+                mMediaPlayer.start();
+                notifyForeground(mNotificationImagePause);
+                mPlayerState = PlayerState.Playing;
+            } catch (NullPointerException e) {
+                setTrack(mCurrentPlayingSong);
+            }
         } else if (mPlayerState.equals(PlayerState.Playing)) {
             sendBroadcast(new Intent(Constants.ACTION_PAUSE));
             mMediaPlayer.pause();
@@ -213,42 +219,50 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onPlayClick() {
-        if (mCurrentPlayingSong == -1) {
-            playFirstTrack();
-        } else {
-            playMusic();
+        if (mMediaItems != null) {
+            if (mCurrentPlayingSong == -1) {
+                playFirstTrack();
+            } else {
+                playMusic();
+            }
         }
     }
 
     @Override
     public void onSkipToNextClick() {
-        if (canPlayNextTrack()) {
-            mCurrentPlayingSong = (mAllowShuffle)
-                    ? mMediaShufflePositions.get(++mShufflePosition)
-                    : ++mCurrentPlayingSong;
+        if (mMediaItems != null) {
+            if (canPlayNextTrack()) {
+                mCurrentPlayingSong = (mAllowShuffle)
+                        ? mMediaShufflePositions.get(++mShufflePosition)
+                        : ++mCurrentPlayingSong;
 
-            setTrack(mCurrentPlayingSong);
-            EventBus.getDefault().post(new UpdateListState(mCurrentPlayingSong));
+                setTrack(mCurrentPlayingSong);
+                EventBus.getDefault().post(new UpdateListState(mCurrentPlayingSong));
+            }
         }
     }
 
     @Override
     public void onSkipToPreviousClick() {
-        if (canPlayPreviousTrack()) {
-            mCurrentPlayingSong = (mAllowShuffle)
-                    ? mMediaShufflePositions.get(--mShufflePosition)
-                    : --mCurrentPlayingSong;
+        if (mMediaItems != null) {
+            if (canPlayPreviousTrack()) {
+                mCurrentPlayingSong = (mAllowShuffle)
+                        ? mMediaShufflePositions.get(--mShufflePosition)
+                        : --mCurrentPlayingSong;
 
-            setTrack(mCurrentPlayingSong);
-            EventBus.getDefault().post(new UpdateListState(mCurrentPlayingSong));
+                setTrack(mCurrentPlayingSong);
+                EventBus.getDefault().post(new UpdateListState(mCurrentPlayingSong));
+            }
         }
     }
 
     @Override
     public void onShuffleTracksClick(boolean allow) {
-        mAllowShuffle = allow;
-        if (mAllowShuffle) {
-            Collections.shuffle(mMediaShufflePositions);
+        if (mMediaItems != null) {
+            mAllowShuffle = allow;
+            if (mAllowShuffle) {
+                Collections.shuffle(mMediaShufflePositions);
+            }
         }
     }
 
@@ -274,12 +288,6 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         }
     }
 
-    public class MusicServiceBinder extends Binder {
-        public MusicService getService() {
-            return getInstance();
-        }
-    }
-
     @Override
     public void onPrepared(MediaPlayer mp) {
         playMusic();
@@ -293,6 +301,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
                     .putExtra(Constants.INTENT_SEEKBAR_KEY, mp.getCurrentPosition())
                     .putExtra(Constants.INTENT_SECONDARY_SEEKBAR_KEY, (mp.getDuration() * percent) / 100)
                     .putExtra(Constants.INTENT_DURATION_KEY, mp.getDuration()));
+
+            EventBus.getDefault().post(new UpdateTrackState(mCurrentPlayingSong));
         }
     }
 
@@ -394,10 +404,19 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         final String imageUrl = mMediaItems.get(mCurrentPlayingSong).getArtworkUrl();
 
         if (!TextUtils.isEmpty(imageUrl)) {
-            Picasso
+
+            NotificationTarget notificationTarget = new NotificationTarget(
+                    this,
+                    bigNotificationView,
+                    R.id.status_bar_album_art,
+                    mNotification,
+                    NOTIFICATION_ID);
+
+            Glide
                     .with(MusicService.this)
                     .load(imageUrl)
-                    .into(bigNotificationView, R.id.status_bar_album_art, NOTIFICATION_ID, mNotification);
+                    .asBitmap()
+                    .into(notificationTarget);
         } else {
             bigNotificationView.setImageViewResource(R.id.status_bar_album_art, R.drawable.artwork_default);
         }
@@ -414,5 +433,11 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         bigNotificationView.setImageViewResource(R.id.status_bar_play, srcImage);
         smallNotificationView.setImageViewResource(R.id.status_bar_play, srcImage);
         mNotificationManager.notify(NOTIFICATION_ID, mNotification);
+    }
+
+    public class MusicServiceBinder extends Binder {
+        public MusicService getService() {
+            return getInstance();
+        }
     }
 }

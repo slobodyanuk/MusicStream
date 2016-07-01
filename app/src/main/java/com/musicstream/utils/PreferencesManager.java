@@ -16,6 +16,7 @@ public class PreferencesManager {
     private static final String CURRENT_SONG = "song";
     private static final String ACTION_SHUFFLE = "shuffle";
     private static final String LOGIN = "login";
+    private static final String USER_ID = "user_id";
 
 
     private PreferencesManager(Context context) {
@@ -64,6 +65,16 @@ public class PreferencesManager {
 
     public int getCurrentSong() {
         return mPref.getInt(CURRENT_SONG, 0);
+    }
+
+    public void setUserId(String userId) {
+        mPref.edit()
+                .putString(USER_ID, userId)
+                .apply();
+    }
+
+    public String getUserId() {
+        return mPref.getString(USER_ID, null);
     }
 
 

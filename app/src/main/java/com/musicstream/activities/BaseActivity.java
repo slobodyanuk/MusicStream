@@ -10,12 +10,12 @@ import android.widget.TextView;
 
 import com.musicstream.R;
 
-import butterknife.Bind;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 
 abstract class BaseActivity extends AppCompatActivity {
     @Nullable
-    @Bind(R.id.toolbar)
+    @BindView(R.id.toolbar)
     Toolbar toolbar;
 
     @Override
@@ -23,6 +23,7 @@ abstract class BaseActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(getLayoutResource());
         ButterKnife.bind(this);
+        ButterKnife.setDebug(true);
     }
 
     public Toolbar getToolbar() {

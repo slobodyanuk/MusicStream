@@ -1,62 +1,70 @@
-<LinearLayout
-    android:id="@+id/root"
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="?android:listPreferredItemHeight"
-    android:orientation="horizontal">
-
-    <RelativeLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:padding="5dp">
-
-        <ImageView
-            android:id="@+id/artwork"
-            android:layout_width="100dp"
-            android:layout_height="100dp"/>
-
-        <RelativeLayout
-            android:layout_width="45dp"
-            android:layout_height="45dp"
-            android:layout_centerInParent="true"
-            android:layout_alignEnd="@id/artwork"
-            android:layout_alignBottom="@id/artwork">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:alpha="0.7"
-                android:background="@drawable/circle"
-                android:scaleType="center"/>
-
-            <ImageView
-                android:id="@+id/play_eq"
-                android:layout_width="35dp"
-                android:layout_height="35dp"
-                android:layout_centerInParent="true"
-                android:src="@drawable/ic_play"/>
-        </RelativeLayout>
-    </RelativeLayout>
+    android:foreground="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
 
     <LinearLayout
+        android:id="@+id/root"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:minHeight="?android:attr/listPreferredItemHeight"
-        android:mode="twoLine"
-        android:orientation="vertical"
-        android:padding="5dp">
+        android:layout_height="wrap_content"
+        android:minHeight="?android:listPreferredItemHeight"
+        android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="fill_parent"
+        <RelativeLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
-            android:layout_marginStart="10dp"
-            android:textAppearance="?android:attr/textAppearanceMedium"/>
+            android:padding="5dp">
+
+            <ImageView
+                android:id="@+id/artwork"
+                android:layout_width="100dp"
+                android:layout_height="100dp"/>
+
+            <RelativeLayout
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_alignBottom="@id/artwork"
+                android:layout_alignEnd="@id/artwork"
+                android:layout_centerInParent="true">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:alpha="0.7"
+                    android:background="@drawable/circle"
+                    android:scaleType="center"/>
+
+                <ImageView
+                    android:id="@+id/play_eq"
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_centerInParent="true"
+                    android:src="@drawable/ic_play"/>
+            </RelativeLayout>
+        </RelativeLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:minHeight="?android:attr/listPreferredItemHeight"
+            android:mode="twoLine"
+            android:orientation="vertical"
+            android:padding="5dp">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:layout_marginStart="10dp"
+                android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+        </LinearLayout>
 
     </LinearLayout>
-
-</LinearLayout>
+</FrameLayout>

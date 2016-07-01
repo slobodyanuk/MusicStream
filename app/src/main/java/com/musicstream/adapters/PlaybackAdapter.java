@@ -1,5 +1,6 @@
 package com.musicstream.adapters;
 
+import android.app.Activity;
 import android.content.Context;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.RecyclerView;
@@ -25,21 +26,19 @@ import butterknife.ButterKnife;
 /**
  * Created by Serhii Slobodyanuk on 14.04.2016.
  */
-public class MainMediaAdapter extends RecyclerView.Adapter<MainMediaAdapter.ViewHolder> {
+public class PlaybackAdapter extends RecyclerView.Adapter<PlaybackAdapter.ViewHolder> {
 
     private List<Track> list;
     private Context mContext;
-    private int imagePlaying = R.drawable.ic_play;
-    private int imagePausing = R.drawable.ic_pause;
     private int selectedPosition = -1;
     private OnClickListener callback;
     private boolean update = false;
 
-    public MainMediaAdapter(Fragment context, List<Track> list) {
+    public PlaybackAdapter(Activity context, List<Track> list) {
         Log.e("adapter", String.valueOf(this));
         this.list = list;
         callback = (OnClickListener) context;
-        this.mContext = context.getActivity();
+        this.mContext = context;
     }
 
     public void updateAdapter(List<Track> list) {
@@ -50,7 +49,7 @@ public class MainMediaAdapter extends RecyclerView.Adapter<MainMediaAdapter.View
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return new ViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.media_list_item, parent, false));
+        return new ViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.playback_item, parent, false));
     }
 
     @Override
@@ -58,21 +57,10 @@ public class MainMediaAdapter extends RecyclerView.Adapter<MainMediaAdapter.View
         Track item = getItem(position);
         holder.mArtistNameView.setText(item.getTitle());
 
-        String url = getItem(position).getArtworkUrl();
-        url = (TextUtils.isEmpty(url) ? "null" : url);
-
-        Glide
-                .with(mContext)
-                .load(url)
-                .error(R.drawable.artwork_default)
-                .into(holder.mArtWork);
-
         if (selectedPosition == position) {
-            holder.mRootLayout.setBackgroundColor(mContext.getResources().getColor(R.color.colorAccentTransparent));
-            holder.mIconPlay.setImageResource(imagePausing);
+            holder.mRoot.setBackgroundColor(mContext.getResources().getColor(R.color.colorAccent));
         } else {
-            holder.mRootLayout.setBackgroundColor(mContext.getResources().getColor(android.R.color.white));
-            holder.mIconPlay.setImageResource(imagePlaying);
+            holder.mRoot.setBackgroundColor(mContext.getResources().getColor(R.color.colorGray));
         }
     }
 
@@ -85,23 +73,14 @@ public class MainMediaAdapter extends RecyclerView.Adapter<MainMediaAdapter.View
         return list.get(position);
     }
 
-    public int getSelectedItem() {
-        return selectedPosition;
+    public List<Track> getTracks(){
+        return list;
     }
 
     public void setSelectedItem(int position) {
         notifyItemChanged(selectedPosition);
         selectedPosition = position;
         notifyItemChanged(position);
-    }
-
-    public void resetItem(int position) {
-        selectedPosition = -1;
-        notifyItemChanged(position);
-    }
-
-    public List<Track> getTracks(){
-        return list;
     }
 
     public void resetItems() {
@@ -114,11 +93,8 @@ public class MainMediaAdapter extends RecyclerView.Adapter<MainMediaAdapter.View
 
     public final class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         @BindView(R.id.root)
-        LinearLayout mRootLayout;
-        @BindView(R.id.play_eq)
-        ImageView mIconPlay;
-        @BindView(R.id.artwork)
-        ImageView mArtWork;
+        LinearLayout mRoot;
+
         @BindView(R.id.title)
         TextView mArtistNameView;
 

@@ -19,15 +19,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <io.codetail.widget.RevealFrameLayout
-            android:id="@+id/container_frame"
-            xmlns:android="http://schemas.android.com/apk/res/android"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content">
 
             <LinearLayout
                 android:id="@+id/content_overlay"
                 android:layout_width="match_parent"
+                android:layout_marginBottom="115dp"
                 android:layout_height="match_parent"
                 android:orientation="vertical"/>
 
@@ -35,14 +34,22 @@
                 android:id="@+id/refresh_layout"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_marginTop="?attr/actionBarSize"
-                android:layout_marginBottom="115dp">
+                android:layout_marginBottom="115dp"
+                android:layout_marginTop="?attr/actionBarSize">
 
-                <LinearLayout
-                    android:id="@+id/content_frame"
+                <io.codetail.widget.RevealFrameLayout
+                    android:id="@+id/container_frame"
+                    xmlns:android="http://schemas.android.com/apk/res/android"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"/>
+                    android:layout_height="match_parent">
+
+                    <LinearLayout
+                        android:id="@+id/content_frame"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"/>
+                </io.codetail.widget.RevealFrameLayout>
+
             </android.support.v4.widget.SwipeRefreshLayout>
 
             <android.support.v7.widget.Toolbar
@@ -63,8 +70,7 @@
                     android:textSize="17dp"/>
 
             </android.support.v7.widget.Toolbar>
-
-        </io.codetail.widget.RevealFrameLayout>
+        </FrameLayout>
 
         <ScrollView
             android:id="@+id/scrollView"
@@ -158,10 +164,21 @@
                     android:orientation="horizontal">
 
                     <ImageButton
+                        android:id="@+id/playback"
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/square_buttons_selector"
+                        android:clickable="true"
+                        android:enabled="false"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/ic_playback"
+                        tools:ignore="ContentDescription"/>
+
+                    <ImageButton
                         android:id="@+id/previous"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginLeft="50dp"
+                        android:layout_marginLeft="25dp"
                         android:background="@drawable/circle_buttons_selector"
                         android:enabled="false"
                         android:scaleType="fitXY"

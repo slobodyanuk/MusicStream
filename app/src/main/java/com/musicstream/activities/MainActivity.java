@@ -16,8 +16,10 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.animation.AccelerateInterpolator;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -25,8 +27,13 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.musicstream.R;
+import com.musicstream.adapters.PlaybackAdapter;
+import com.musicstream.enums.MenuState;
 import com.musicstream.enums.ServiceConnectionState;
+import com.musicstream.events.PlaybackEvent;
+import com.musicstream.events.PopupEvent;
 import com.musicstream.events.RestResponseEvent;
 import com.musicstream.fragments.BaseFragment;
 import com.musicstream.fragments.MainFragment;
@@ -43,19 +50,24 @@ import com.musicstream.utils.PreferencesManager;
 import com.musicstream.utils.TimeUtils;
 import com.musicstream.utils.Utils;
 import com.musicstream.utils.ViewAnimator;
+import com.musicstream.views.PlaybackPopupView;
+import com.musicstream.views.TrackPopupView;
 import com.sothree.slidinguppanel.SlidingUpPanelLayout;
-import com.squareup.picasso.Picasso;
 import com.zhy.view.flowlayout.FlowLayout;
 import com.zhy.view.flowlayout.TagAdapter;
 import com.zhy.view.flowlayout.TagFlowLayout;
 
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import butterknife.Bind;
+import butterknife.BindView;
+import butterknife.ButterKnife;
 import butterknife.OnClick;
+import io.codetail.animation.SupportAnimator;
+import io.codetail.animation.ViewAnimationUtils;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -73,36 +85,50 @@ import static com.zhy.view.flowlayout.TagFlowLayout.OnTagClickListener;
 public class MainActivity extends BaseActivity
         implements ViewAnimator.ViewAnimatorListener,
         LoginListener, SeekBar.OnSeekBarChangeListener,
-        SwipeRefreshLayout.OnRefreshListener {
+        SwipeRefreshLayout.OnRefreshListener, PlaybackAdapter.OnClickListener {
 
     private static final String CONTENT_FRAGMENT = "content_fragment";
     private static final int MAX_LIMIT = 50;
+    private static final int MENU_TOP = 1;
+    private static final int MENU_PLAYLIST = 2;
 
-    @Bind(R.id.left_drawer)
+    @BindView(R.id.left_drawer)
     LinearLayout mMenuFrame;
-    @Bind(R.id.drawer_layout)
+
+    @BindView(R.id.drawer_layout)
     DrawerLayout mDrawerLayout;
-    @Bind(R.id.toolbar_title)
+
+    @BindView(R.id.toolbar_title)
     TextView mToolbarTextView;
-    @Bind(R.id.sliding_layout)
+
+    @BindView(R.id.sliding_layout)
     SlidingUpPanelLayout mSlidingUpPanelLayout;
-    @Bind(R.id.controlsFrame)
+
+    @BindView(R.id.controlsFrame)
     LinearLayout mControlsFrame;
-    @Bind(R.id.positionSeek)
+
+    @BindView(R.id.positionSeek)
     SeekBar mSeekBar;
-    @Bind(R.id.position)
+
+    @BindView(R.id.position)
     TextView mCurrentProgressText;
-    @Bind(R.id.duration)
+
+    @BindView(R.id.duration)
     TextView mTrackDurationText;
-    @Bind(R.id.play)
+
+    @BindView(R.id.play)
     ImageButton mPlayButton;
-    @Bind(R.id.shuffle)
+
+    @BindView(R.id.shuffle)
     ImageButton mShuffleButton;
-    @Bind(R.id.flow_layout)
+
+    @BindView(R.id.flow_layout)
     TagFlowLayout mTagFlowLayout;
-    @Bind(R.id.artwork)
+
+    @BindView(R.id.artwork)
     ImageView mArtworkView;
-    @Bind(R.id.refresh_layout)
+
+    @BindView(R.id.refresh_layout)
     SwipeRefreshLayout mSwipeRefreshLayout;
 
     private List<SlideMenuItem> mMenuList = new ArrayList<>();
@@ -113,24 +139,86 @@ public class MainActivity extends BaseActivity
     private ViewAnimator mViewAnimator;
     private ActionBarDrawerToggle mDrawerToggle;
 
+    private MenuState mMenuState = MenuState.TOP;
     private ServiceConnectionState mServiceConnectionState = DISCONNECT;
+
     private MusicService mMusicServiceInstance;
     private BroadcastReceiver mBroadcastReceiver;
 
     private PreferencesManager mPref = PreferencesManager.getInstance();
 
     private MediaControlListener mMediaControlListener;
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            MusicService.MusicServiceBinder binder = (MusicService.MusicServiceBinder) service;
+            mMusicServiceInstance = binder.getService();
+            mMediaControlListener = mMusicServiceInstance;
+            mServiceConnectionState = BOUND;
+        }
 
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mServiceConnectionState = UNBOUND;
+        }
+    };
     private boolean access;
     private boolean allowShuffle = true;
     private boolean isShuffle = false;
     private String[] genres;
     private int genre;
+    private TrackPopupView mTrackPopupView;
+
     private Intent mServiceIntent;
+    private PlaybackPopupView mPlaybackView;
+    private Callback callback = new Callback<Tracks>() {
+        @Override
+        public void onResponse(Call<Tracks> call, Response<Tracks> response) {
+            mSwipeRefreshLayout.setRefreshing(false);
+            EventBus.getDefault().post(new RestResponseEvent(response));
+        }
+
+        @Override
+        public void onFailure(Call<Tracks> call, Throwable t) {
+            mSwipeRefreshLayout.setRefreshing(false);
+            Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_LONG).show();
+        }
+    };
+    private Callback playlistCallback = new Callback<Tracks>() {
+        @Override
+        public void onResponse(Call<Tracks> call, Response<Tracks> response) {
+            mSwipeRefreshLayout.setRefreshing(false);
+            EventBus.getDefault().post(new RestResponseEvent(response));
+        }
+
+        @Override
+        public void onFailure(Call<Tracks> call, Throwable t) {
+            mSwipeRefreshLayout.setRefreshing(false);
+            Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_LONG).show();
+        }
+    };
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        EventBus.getDefault().register(this);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        mMenuState = (MenuState) savedInstanceState.getSerializable("menu");
+        if (mMenuState == null){
+            mMenuState = MenuState.TOP;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null && savedInstanceState.getSerializable("menu")  != null) {
+            mMenuState = (MenuState) savedInstanceState.getSerializable("menu");
+        }
 
         genres = getResources().getStringArray(R.array.genres);
         genre = mPref.getCurrentGenre();
@@ -139,7 +227,7 @@ public class MainActivity extends BaseActivity
         mServiceIntent = new Intent(this, MusicService.class);
 
         if (!access) {
-            new SoundLoginTask(this, "ceruy.slobodyanuk@gmail.com", "qwaszx1245784895").execute();
+            new SoundLoginTask(this, "ceruy.slobodyanuk@gmail.com", "{-h8~DP:q+_[|*e").execute();
         } else {
             onLoginCompleted(true);
         }
@@ -164,7 +252,7 @@ public class MainActivity extends BaseActivity
             mMainFragment = (MainFragment) mFragmentManager.findFragmentByTag(CONTENT_FRAGMENT);
             mContentFragment = mMainFragment;
         } else {
-            mMainFragment = MainFragment.newInstance();
+            mMainFragment = MainFragment.newInstance(MenuItemKey.ITEM_TOP);
             if (mMainFragment != null) {
                 mFragmentManager.beginTransaction()
                         .replace(R.id.content_frame, mMainFragment, CONTENT_FRAGMENT)
@@ -174,6 +262,14 @@ public class MainActivity extends BaseActivity
             } else {
                 finish();
             }
+        }
+    }
+
+    @OnClick(R.id.playback)
+    void onPlaybackClick() {
+        if (mMusicServiceInstance != null) {
+            mPlaybackView = new PlaybackPopupView(this);
+            mPlaybackView.initPopupView(mMusicServiceInstance.getCurrentPlaylist(), mMusicServiceInstance.getCurrentPlayingSong());
         }
     }
 
@@ -314,21 +410,6 @@ public class MainActivity extends BaseActivity
         }
     }
 
-    private final ServiceConnection mServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            MusicService.MusicServiceBinder binder = (MusicService.MusicServiceBinder) service;
-            mMusicServiceInstance = binder.getService();
-            mMediaControlListener = mMusicServiceInstance;
-            mServiceConnectionState = BOUND;
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            mServiceConnectionState = UNBOUND;
-        }
-    };
-
     public MusicService getMusicServiceInstance() {
         if (mMusicServiceInstance == null) {
             mMusicServiceInstance = MusicService.getInstance();
@@ -367,8 +448,7 @@ public class MainActivity extends BaseActivity
             public boolean onTagClick(View view, int position, FlowLayout parent) {
                 genre = position;
                 mSlidingUpPanelLayout.setPanelState(PanelState.COLLAPSED);
-                Call<Tracks> call = RestClient.getApiService().getTracks("top", genres[genre], Constants.CLIENT_ID, MAX_LIMIT);
-                call.enqueue(callback);
+                sendGenresRequest();
                 return true;
             }
         });
@@ -398,11 +478,10 @@ public class MainActivity extends BaseActivity
         url = (TextUtils.isEmpty(url) ? "null" : url);
 
         if (mSlidingUpPanelLayout.getPanelState() == PanelState.EXPANDED) {
-            Picasso
+            Glide
                     .with(this)
                     .load(url)
                     .error(R.drawable.artwork_default)
-                    .fit()
                     .into(mArtworkView);
         }
     }
@@ -410,6 +489,7 @@ public class MainActivity extends BaseActivity
     private List<SlideMenuItem> getMenuList() {
         mMenuList.add(new SlideMenuItem(MenuItemKey.ITEM_CLOSE, R.drawable.ic_close));
         mMenuList.add(new SlideMenuItem(MenuItemKey.ITEM_TOP, R.drawable.ic_menu_popular));
+        mMenuList.add(new SlideMenuItem(MenuItemKey.ITEM_NEW_TRACKS, R.drawable.ic_new_tracks));
         mMenuList.add(new SlideMenuItem(MenuItemKey.ITEM_PLAYLIST, R.drawable.ic_menu_playlist));
         return mMenuList;
     }
@@ -422,6 +502,10 @@ public class MainActivity extends BaseActivity
                 .addToBackStack(title)
                 .commit();
 
+    }
+
+    public String getCurrentGenre() {
+        return genres[genre];
     }
 
     public LinearLayout getPlayerControlView() {
@@ -464,8 +548,48 @@ public class MainActivity extends BaseActivity
     @Override
     public void onRefresh() {
         mSwipeRefreshLayout.setRefreshing(true);
+        switch (mMenuState) {
+            case TOP:
+                sendGenresRequest();
+                break;
+
+            case NEW:
+                sendHotSongRequest();
+                break;
+
+            case PLAYLIST:
+                sendPlaylistRequest();
+                break;
+        }
+    }
+
+    private void sendGenresRequest() {
+        Log.e("request", "top");
+        mMenuState = MenuState.TOP;
         Call<Tracks> call = RestClient.getApiService().getTracks("top", genres[genre], Constants.CLIENT_ID, MAX_LIMIT);
         call.enqueue(callback);
+    }
+
+    private void sendHotSongRequest() {
+        Log.e("request", "newhot");
+        mMenuState = MenuState.NEW;
+        Call<Tracks> call = RestClient.getApiService().getHotTracks("trending", genres[genre], Constants.CLIENT_ID, MAX_LIMIT);
+        call.enqueue(callback);
+    }
+
+    private void sendPlaylistRequest() {
+        Log.e("request", "list");
+        mMenuState = MenuState.PLAYLIST;
+        Call<Tracks> call = RestClient.getApiService().getPlaylists(PreferencesManager.getInstance().getUserId(), Constants.CLIENT_ID);
+        call.enqueue(callback);
+    }
+
+    @Override
+    public void onTrackClick(int position) {
+        EventBus.getDefault().post(new PlaybackEvent(position));
+        if (mPlaybackView != null) {
+            mPlaybackView.setSelectedItem(position);
+        }
     }
 
     @Override
@@ -488,7 +612,48 @@ public class MainActivity extends BaseActivity
 
     @Override
     public Fragment onSwitch(Resourceble slideMenuItem, Fragment screenShotable, int position) {
-        return null;
+        switch (slideMenuItem.getName()) {
+            case MenuItemKey.ITEM_CLOSE:
+                return null;
+            default:
+                return replaceFragment(slideMenuItem, position);
+        }
+    }
+
+    private Fragment replaceFragment(Resourceble slideMenuItem, int topPosition) {
+        View view = ButterKnife.findById(this, R.id.content_frame);
+        int finalRadius = Math.max(view.getWidth(), view.getHeight());
+        SupportAnimator animator = ViewAnimationUtils.createCircularReveal(view, 0, topPosition, 0, finalRadius);
+        animator.setInterpolator(new AccelerateInterpolator());
+        animator.setDuration(ViewAnimator.CIRCULAR_REVEAL_ANIMATION_DURATION);
+        animator.start();
+
+        MainFragment contentFragment = MainFragment.newInstance(slideMenuItem.getName());
+        getSupportFragmentManager().beginTransaction().replace(R.id.content_frame, contentFragment).commit();
+
+        switch (slideMenuItem.getName()) {
+            case MenuItemKey.ITEM_TOP:
+                mMenuState = MenuState.TOP;
+                sendGenresRequest();
+                ButterKnife.findById(this, R.id.content_overlay)
+                        .setBackgroundColor(getResources().getColor(R.color.colorRed));
+                break;
+
+            case MenuItemKey.ITEM_NEW_TRACKS:
+                mMenuState = MenuState.NEW;
+                sendHotSongRequest();
+                ButterKnife.findById(this, R.id.content_overlay)
+                        .setBackgroundColor(getResources().getColor(R.color.colorPink));
+                break;
+
+            case MenuItemKey.ITEM_PLAYLIST:
+                mMenuState = MenuState.PLAYLIST;
+                sendPlaylistRequest();
+                ButterKnife.findById(this, R.id.content_overlay)
+                        .setBackgroundColor(getResources().getColor(R.color.colorYellow));
+                break;
+        }
+        return contentFragment;
     }
 
     @Override
@@ -520,31 +685,48 @@ public class MainActivity extends BaseActivity
             }
 
             mPref.setLogin(true);
-            Call<Tracks> call = RestClient.getApiService().getTracks("top", genres[genre], Constants.CLIENT_ID, MAX_LIMIT);
-            call.enqueue(callback);
+            switch (mMenuState) {
+                case TOP:
+                    sendGenresRequest();
+                    break;
+
+                case NEW:
+                    sendHotSongRequest();
+                    break;
+
+                case PLAYLIST:
+                    sendPlaylistRequest();
+                    break;
+            }
         } else {
             mPref.setLogin(false);
             Toast.makeText(this, "Error", Toast.LENGTH_LONG).show();
         }
     }
 
-    private Callback callback = new Callback<Tracks>() {
-        @Override
-        public void onResponse(Call<Tracks> call, Response<Tracks> response) {
-            mSwipeRefreshLayout.setRefreshing(false);
-            EventBus.getDefault().post(new RestResponseEvent(response));
+    private void showPopup(String title) {
+        if (mTrackPopupView != null) {
+            mTrackPopupView.dismissView();
         }
+        mTrackPopupView = new TrackPopupView(this);
+        mTrackPopupView.initPopupView(title);
+    }
 
-        @Override
-        public void onFailure(Call<Tracks> call, Throwable t) {
-            mSwipeRefreshLayout.setRefreshing(false);
-            Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_LONG).show();
-        }
-    };
+    @Subscribe
+    public void onEvent(PopupEvent event) {
+        showPopup(event.getTitle());
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putSerializable("menu", mMenuState);
+    }
 
     @Override
     protected void onStop() {
         super.onStop();
+        EventBus.getDefault().unregister(this);
         if (!Utils.isServiceRunning(this, MusicService.class)) {
             mPref.clear();
         }
